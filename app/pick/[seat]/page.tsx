@@ -327,7 +327,7 @@ export default function PickPage() {
 
           {!loading && available.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-sm text-neutral-400">
-              No available celebs (did you upload the list?).
+              Draft Complete!
             </div>
           ) : null}
         </div>

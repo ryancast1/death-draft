@@ -42,10 +42,10 @@ export default function Home() {
     <main className="min-h-dvh p-6">
       <div className="mx-auto w-full max-w-[520px]">
         <div className="mb-4">
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-            Celebrity Death Draft
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            10th Annual Celebrity Death Draft
           </h1>
-          <div className="mt-1 text-sm text-neutral-600">
+          <div className="mt-2 text-sm text-neutral-300">
             {err
               ? `DB error: ${err}`
               : count === null

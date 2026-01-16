@@ -145,26 +145,94 @@ export default function BoardPage() {
     return m;
   }, [rows]);
 
+  const lastPickNumber = useMemo(() => {
+    if (rows.length === 0) return null;
+    return rows.reduce((max, r) => (r.pick_number > max ? r.pick_number : max), rows[0].pick_number);
+  }, [rows]);
+
+  const exportBoardCsv = () => {
+    // Build per-seat lists in the same order as the UI
+    const lists: Record<number, BoardRow[]> = {};
+    for (const p of PLAYERS) {
+      const l = (bySeat.get(p.seat) ?? []).slice();
+      // bySeat is already sorted, but keep it explicit
+      l.sort((a, b) => {
+        if (b.celebrity_age !== a.celebrity_age) return b.celebrity_age - a.celebrity_age;
+        return a.celebrity_name.localeCompare(b.celebrity_name);
+      });
+      lists[p.seat] = l;
+    }
+
+    const maxLen = Math.max(0, ...PLAYERS.map((p) => lists[p.seat].length));
+
+    const headers: string[] = [];
+    for (const p of PLAYERS) {
+      headers.push(p.name);
+      headers.push(`${p.name} Age`);
+    }
+
+    const escape = (v: string) => {
+      // CSV escaping: wrap in quotes if needed and double internal quotes
+      if (/[\n\r,\"]/g.test(v)) return `"${v.replace(/\"/g, '""')}"`;
+      return v;
+    };
+
+    const lines: string[] = [];
+    lines.push(headers.map(escape).join(","));
+
+    for (let i = 0; i < maxLen; i++) {
+      const row: string[] = [];
+      for (const p of PLAYERS) {
+        const item = lists[p.seat][i];
+        row.push(item ? item.celebrity_name : "");
+        row.push(item ? String(item.celebrity_age) : "");
+      }
+      lines.push(row.map(escape).join(","));
+    }
+
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    a.href = url;
+    a.download = `death-draft-board-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <main className="min-h-dvh bg-white px-8 py-8 text-neutral-900">
+    <main className="min-h-dvh bg-white px-8 py-4 text-neutral-900">
       <div className="mx-auto w-full max-w-[1400px]">
-        <div className="mb-6 flex items-end justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Draft Board</h1>
-            <div className="mt-1 text-sm text-neutral-500">
-            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Draft Board</h1>
           </div>
-          <div className="text-sm text-neutral-500">
-            {loading ? (
-              "Loading…"
-            ) : err ? (
-              ""
-            ) : (
-              <div className="flex items-center gap-3">
-                <div>{`${rows.length} picks`}</div>
-                <div className="text-xs uppercase text-neutral-400">RT: {rtStatus}</div>
-              </div>
-            )}
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportBoardCsv}
+              className="inline-flex h-9 items-center rounded-2xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-900 shadow-sm transition active:scale-[0.99]"
+            >
+              Export Board
+            </button>
+
+            <div className="text-sm text-neutral-500">
+              {loading ? (
+                "Loading…"
+              ) : err ? (
+                ""
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div>{`${rows.length} picks`}</div>
+                  <div className="text-xs uppercase text-neutral-400">RT: {rtStatus}</div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -175,33 +243,49 @@ export default function BoardPage() {
         ) : null}
 
         <div className="overflow-x-auto">
-          <div className="grid min-w-[1200px] grid-cols-6 gap-8">
-            {PLAYERS.map((p) => {
-              const list = bySeat.get(p.seat) ?? [];
-              return (
-                <section key={p.seat} className="">
-                  <div className="mb-2 text-center text-lg font-semibold">{p.name}</div>
+          <div className="max-h-[calc(100vh-120px)] overflow-y-auto pb-64">
+            <div className="grid min-w-[1200px] grid-cols-6 gap-8">
+              {PLAYERS.map((p) => {
+                const list = bySeat.get(p.seat) ?? [];
+                return (
+                  <section key={p.seat} className="">
+                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur py-2 text-center text-base font-semibold border-b border-neutral-200">
+                      {p.name}
+                    </div>
 
-                  <div className="space-y-1 text-sm">
-                    {list.length === 0 ? (
-                      <div className="py-2 text-center text-xs text-neutral-400">No picks yet</div>
-                    ) : null}
+                    <div className="pr-1 text-sm">
+                      {list.length === 0 ? (
+                        <div className="py-2 text-center text-xs text-neutral-400">No picks yet</div>
+                      ) : null}
 
-                    {list.map((r) => (
-                      <div
-                        key={r.celebrity_id}
-                        className="flex items-baseline justify-between gap-3 border-b border-neutral-200/70 py-1"
-                      >
-                        <div className="min-w-0 flex-1 truncate">{r.celebrity_name}</div>
-                        <div className="w-10 shrink-0 text-right tabular-nums text-neutral-600">
-                          {r.celebrity_age}
+                      {list.map((r) => (
+                        <div
+                          key={r.celebrity_id}
+                          className={
+                            "flex items-center justify-between gap-2 border-b border-neutral-200/60 py-0.5 leading-tight " +
+                            (lastPickNumber !== null && r.pick_number === lastPickNumber
+                              ? "rounded bg-amber-100 px-1.5 py-0.5 font-semibold"
+                              : "")
+                          }
+                        >
+                          <div className="min-w-0 flex-1 truncate text-[13px]">{r.celebrity_name}</div>
+                          <div
+                            className={
+                              "w-9 shrink-0 text-right tabular-nums text-[12px] " +
+                              (lastPickNumber !== null && r.pick_number === lastPickNumber
+                                ? "text-neutral-900"
+                                : "text-neutral-600")
+                            }
+                          >
+                            {r.celebrity_age}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
