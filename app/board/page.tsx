@@ -152,7 +152,6 @@ export default function BoardPage() {
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Draft Board</h1>
             <div className="mt-1 text-sm text-neutral-500">
-              Live board (desktop). Columns are in draft order. Sorted by age.
             </div>
           </div>
           <div className="text-sm text-neutral-500">
@@ -164,7 +163,6 @@ export default function BoardPage() {
               <div className="flex items-center gap-3">
                 <div>{`${rows.length} picks`}</div>
                 <div className="text-xs uppercase text-neutral-400">RT: {rtStatus}</div>
-                <div className="text-xs uppercase text-neutral-400">EV: {rtEvents}</div>
               </div>
             )}
           </div>

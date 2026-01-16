@@ -220,17 +220,17 @@ export default function PickPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-white text-neutral-900">
+    <main className="min-h-dvh bg-neutral-950 text-neutral-50">
       {/* Sticky header for mobile */}
-      <div className="sticky top-0 z-10 border-b border-neutral-200 bg-white/90 backdrop-blur">
+      <div className="sticky top-0 z-10 border-b border-white/10 bg-neutral-950/85 backdrop-blur">
         <div className="mx-auto w-full max-w-[720px] px-4 pb-3 pt-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
                 Picker
               </div>
               <h1 className="text-2xl font-semibold tracking-tight">{myName}</h1>
-              <div className="mt-1 text-sm text-neutral-600">
+              <div className="mt-1 text-sm text-neutral-300">
                 {turnSeat === null
                   ? "Loading turn…"
                   : `Current turn: ${seatToName(turnSeat)}`}
@@ -238,7 +238,7 @@ export default function PickPage() {
             </div>
             <button
               onClick={() => router.push("/")}
-              className="mt-1 inline-flex items-center rounded-2xl border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-900 active:scale-[0.99]"
+              className="mt-1 inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-neutral-100 active:scale-[0.99]"
             >
               Home
             </button>
@@ -248,26 +248,26 @@ export default function PickPage() {
           <div
             className={
               isMyTurn
-                ? "mt-4 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3"
-                : "mt-4 rounded-3xl border border-neutral-200 bg-neutral-50 px-4 py-3"
+                ? "mt-4 rounded-3xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3"
+                : "mt-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-3"
             }
           >
-            <div className={isMyTurn ? "text-sm font-semibold text-emerald-800" : "text-sm font-semibold text-neutral-800"}>
+            <div
+              className={
+                isMyTurn
+                  ? "text-2xl font-extrabold tracking-tight text-emerald-200"
+                  : "text-2xl font-extrabold tracking-tight text-neutral-200"
+              }
+            >
               {isMyTurn ? "YOUR TURN" : "Not your turn"}
-            </div>
-            <div className={isMyTurn ? "mt-0.5 text-sm text-emerald-700" : "mt-0.5 text-sm text-neutral-600"}>
-              {isMyTurn
-                ? "Tap a name below to pick. This will lock instantly for everyone."
-                : "You can browse the list, but only the current player can pick."}
             </div>
           </div>
 
           {/* Status line */}
-          <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+          <div className="mt-3 flex items-center justify-between text-xs text-neutral-400">
             <div>{loading ? "Loading…" : `${available.length} available`}</div>
             <div className="flex items-center gap-3">
               <div className="uppercase">RT: {rtStatus}</div>
-              <div className="uppercase">EV: {rtEvents}{rtLast ? ` @ ${rtLast}` : ""}</div>
               <div>{state ? `Pick #${state.pick_number + 1}` : ""}</div>
             </div>
           </div>
@@ -281,7 +281,7 @@ export default function PickPage() {
       </div>
 
       {/* List */}
-      <div className="mx-auto w-full max-w-[720px] px-4 pb-10 pt-4">
+      <div className="mx-auto w-full max-w-[720px] px-4 pb-10 pt-3">
         <div className="space-y-2">
           {available.map((c) => {
             const disabled = !isMyTurn || !!pickingId;
@@ -293,17 +293,17 @@ export default function PickPage() {
                 onClick={() => onPick(c)}
                 disabled={disabled}
                 className={
-                  "flex w-full items-center justify-between gap-3 rounded-3xl border px-4 py-4 text-left shadow-sm transition active:scale-[0.99] " +
+                  "flex w-full items-center justify-between gap-3 rounded-3xl border px-4 py-3 text-left transition active:scale-[0.99] " +
                   (disabled
-                    ? "border-neutral-200 bg-white text-neutral-900 opacity-80"
-                    : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50")
+                    ? "border-white/10 bg-white/5 text-neutral-100 opacity-60"
+                    : "border-white/10 bg-white/5 text-neutral-100 hover:bg-white/10")
                 }
               >
-                <div className="min-w-0">
-                  <div className="text-base font-semibold leading-tight">
-                    {c.name}
-                  </div>
-                  <div className="mt-0.5 text-xs text-neutral-500">Age {c.age}</div>
+                <div className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {c.name}
+                  <span className="ml-2 text-xs font-semibold text-neutral-400 tabular-nums">
+                    {c.age}
+                  </span>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
@@ -312,10 +312,10 @@ export default function PickPage() {
                   ) : null}
                   <div
                     className={
-                      "rounded-2xl px-3 py-2 text-sm font-semibold " +
+                      "rounded-2xl px-3 py-1.5 text-xs font-semibold " +
                       (disabled
-                        ? "bg-neutral-100 text-neutral-500"
-                        : "bg-neutral-900 text-white")
+                        ? "bg-white/10 text-neutral-400"
+                        : "bg-emerald-500/20 text-emerald-200 border border-emerald-400/20")
                     }
                   >
                     Pick
@@ -326,7 +326,7 @@ export default function PickPage() {
           })}
 
           {!loading && available.length === 0 ? (
-            <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-600">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-sm text-neutral-400">
               No available celebs (did you upload the list?).
             </div>
           ) : null}
@@ -340,19 +340,19 @@ export default function PickPage() {
             className="absolute inset-0 bg-black/30"
             onClick={() => (pickingId ? null : setPendingPick(null))}
           />
-          <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[720px] rounded-t-3xl border border-neutral-200 bg-white p-4 shadow-2xl">
-            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[720px] rounded-t-3xl border border-white/10 bg-neutral-950 p-4 shadow-2xl">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
               Confirm pick
             </div>
-            <div className="mt-1 text-lg font-semibold tracking-tight text-neutral-900">
+            <div className="mt-1 text-lg font-semibold tracking-tight text-neutral-50">
               {pendingPick.name}
             </div>
-            <div className="mt-1 text-sm text-neutral-600">Age {pendingPick.age}</div>
+            <div className="mt-1 text-sm text-neutral-300">Age {pendingPick.age}</div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                className="h-12 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-900 active:scale-[0.99]"
+                className="h-12 rounded-2xl border border-white/10 bg-white/5 text-neutral-100 text-sm font-semibold active:scale-[0.99]"
                 onClick={() => setPendingPick(null)}
                 disabled={!!pickingId}
               >
@@ -360,7 +360,7 @@ export default function PickPage() {
               </button>
               <button
                 type="button"
-                className="h-12 rounded-2xl bg-neutral-900 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
+                className="h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/20 text-emerald-200 text-sm font-semibold active:scale-[0.99] disabled:opacity-60"
                 onClick={confirmPick}
                 disabled={!isMyTurn || !!pickingId}
               >
