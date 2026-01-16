@@ -45,8 +45,11 @@ export default function PickPage() {
   const [available, setAvailable] = useState<AvailableCelebrity[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickingId, setPickingId] = useState<string | null>(null);
+  const [pendingPick, setPendingPick] = useState<AvailableCelebrity | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [rtStatus, setRtStatus] = useState<string>("connecting");
+  const [rtEvents, setRtEvents] = useState<number>(0);
+  const [rtLast, setRtLast] = useState<string>("");
 
   const myName = useMemo(() => (isValidSeat ? seatToName(seat) : "Unknown"), [isValidSeat, seat]);
   const turnSeat = state?.turn_seat ?? null;
@@ -118,6 +121,8 @@ export default function PickPage() {
               pick_number: next.pick_number,
               updated_at: next.updated_at,
             });
+            setRtEvents((n) => n + 1);
+            setRtLast(new Date().toLocaleTimeString());
           }
         }
       )
@@ -125,6 +130,8 @@ export default function PickPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "death_draft_picks" },
         () => {
+          setRtEvents((n) => n + 1);
+          setRtLast(new Date().toLocaleTimeString());
           void loadAvailable().catch(() => {
             /* ignore transient */
           });
@@ -143,20 +150,28 @@ export default function PickPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isValidSeat, seat]);
 
-  const onPick = async (c: AvailableCelebrity) => {
+  const onPick = (c: AvailableCelebrity) => {
     if (!isValidSeat) return;
     if (!isMyTurn) return;
     if (pickingId) return;
 
-    const ok = window.confirm(`Pick ${c.name} (${c.age})?`);
-    if (!ok) return;
+    setErr(null);
+    setPendingPick(c);
+  };
+
+  const confirmPick = async () => {
+    if (!isValidSeat) return;
+    if (!isMyTurn) return;
+    if (!pendingPick) return;
+    if (pickingId) return;
 
     setErr(null);
-    setPickingId(c.id);
+    setPickingId(pendingPick.id);
+
     try {
       const { data, error } = await supabase.rpc("death_draft_make_pick", {
         p_seat: seat,
-        p_celebrity_id: c.id,
+        p_celebrity_id: pendingPick.id,
       });
 
       if (error) throw error;
@@ -165,6 +180,9 @@ export default function PickPage() {
       if (!res?.ok) {
         throw new Error(res?.message ?? "Pick failed.");
       }
+
+      // Close confirm sheet
+      setPendingPick(null);
 
       // Optimistic refresh (realtime will also handle it)
       await loadAll();
@@ -249,6 +267,7 @@ export default function PickPage() {
             <div>{loading ? "Loading…" : `${available.length} available`}</div>
             <div className="flex items-center gap-3">
               <div className="uppercase">RT: {rtStatus}</div>
+              <div className="uppercase">EV: {rtEvents}{rtLast ? ` @ ${rtLast}` : ""}</div>
               <div>{state ? `Pick #${state.pick_number + 1}` : ""}</div>
             </div>
           </div>
@@ -313,6 +332,50 @@ export default function PickPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Confirm Pick Bottom Sheet */}
+      {pendingPick ? (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => (pickingId ? null : setPendingPick(null))}
+          />
+          <div className="absolute bottom-0 left-0 right-0 mx-auto w-full max-w-[720px] rounded-t-3xl border border-neutral-200 bg-white p-4 shadow-2xl">
+            <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Confirm pick
+            </div>
+            <div className="mt-1 text-lg font-semibold tracking-tight text-neutral-900">
+              {pendingPick.name}
+            </div>
+            <div className="mt-1 text-sm text-neutral-600">Age {pendingPick.age}</div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                className="h-12 rounded-2xl border border-neutral-200 bg-white text-sm font-semibold text-neutral-900 active:scale-[0.99]"
+                onClick={() => setPendingPick(null)}
+                disabled={!!pickingId}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="h-12 rounded-2xl bg-neutral-900 text-sm font-semibold text-white active:scale-[0.99] disabled:opacity-60"
+                onClick={confirmPick}
+                disabled={!isMyTurn || !!pickingId}
+              >
+                {pickingId ? "Picking…" : "Confirm"}
+              </button>
+            </div>
+
+            {!isMyTurn ? (
+              <div className="mt-3 text-xs text-neutral-500">
+                Not your turn.
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
