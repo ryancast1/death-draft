@@ -55,6 +55,12 @@ export default function PickPage() {
   const turnSeat = state?.turn_seat ?? null;
   const isMyTurn = isValidSeat && turnSeat === seat;
 
+  const liveLabel = useMemo(() => {
+    if (rtStatus === "subscribed") return "Live";
+    if (rtStatus === "channel_error") return "Not Live - Refresh";
+    return "Connecting";
+  }, [rtStatus]);
+
   const loadState = async () => {
     const { data, error } = await supabase
       .from("death_draft_state")
@@ -267,7 +273,7 @@ export default function PickPage() {
           <div className="mt-3 flex items-center justify-between text-xs text-neutral-400">
             <div>{loading ? "Loading…" : `${available.length} available`}</div>
             <div className="flex items-center gap-3">
-              <div className="uppercase">RT: {rtStatus}</div>
+              <div className="uppercase">{liveLabel}</div>
               <div>{state ? `Pick #${state.pick_number + 1}` : ""}</div>
             </div>
           </div>

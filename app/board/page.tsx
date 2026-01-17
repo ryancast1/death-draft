@@ -33,19 +33,34 @@ export default function BoardPage() {
   const [err, setErr] = useState<string | null>(null);
   const [rtStatus, setRtStatus] = useState<string>("connecting");
   const [rtEvents, setRtEvents] = useState<number>(0);
+  const [turnSeat, setTurnSeat] = useState<number | null>(null);
 
   const load = async () => {
     setErr(null);
-    const { data, error } = await supabase
-      .from("death_draft_board")
-      .select("pick_number, seat, player_name, celebrity_id, celebrity_name, celebrity_age, picked_at");
 
-    if (error) {
-      setErr(error.message);
+    const [boardRes, stateRes] = await Promise.all([
+      supabase
+        .from("death_draft_board")
+        .select(
+          "pick_number, seat, player_name, celebrity_id, celebrity_name, celebrity_age, picked_at"
+        ),
+      supabase
+        .from("death_draft_state")
+        .select("turn_seat")
+        .eq("id", 1)
+        .single(),
+    ]);
+
+    if (boardRes.error) {
+      setErr(boardRes.error.message);
       return;
     }
 
-    setRows((data ?? []) as BoardRow[]);
+    setRows((boardRes.data ?? []) as BoardRow[]);
+
+    if (!stateRes.error && stateRes.data) {
+      setTurnSeat((stateRes.data as any).turn_seat ?? null);
+    }
   };
 
   useEffect(() => {
@@ -113,6 +128,15 @@ export default function BoardPage() {
           setRtEvents((n) => n + 1);
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "death_draft_state", filter: "id=eq.1" },
+        (payload) => {
+          const next = payload.new as any;
+          setTurnSeat(next?.turn_seat ?? null);
+          setRtEvents((n) => n + 1);
+        }
+      )
       .subscribe((status) => {
         setRtStatus(String(status).toLowerCase());
       });
@@ -149,6 +173,12 @@ export default function BoardPage() {
     if (rows.length === 0) return null;
     return rows.reduce((max, r) => (r.pick_number > max ? r.pick_number : max), rows[0].pick_number);
   }, [rows]);
+
+  const liveLabel = useMemo(() => {
+    if (rtStatus === "subscribed") return "Live";
+    if (rtStatus === "channel_error") return "Not Live - Refresh";
+    return "Connecting";
+  }, [rtStatus]);
 
   const exportBoardCsv = () => {
     // Build per-seat lists in the same order as the UI
@@ -209,7 +239,7 @@ export default function BoardPage() {
       <div className="mx-auto w-full max-w-[1400px]">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Draft Board</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">10th Annual Celebrity Death Draft</h1>
           </div>
 
           <div className="flex items-center gap-2">
@@ -229,7 +259,7 @@ export default function BoardPage() {
               ) : (
                 <div className="flex items-center gap-3">
                   <div>{`${rows.length} picks`}</div>
-                  <div className="text-xs uppercase text-neutral-400">RT: {rtStatus}</div>
+                  <div className="text-xs uppercase text-neutral-400">{liveLabel}</div>
                 </div>
               )}
             </div>
@@ -249,8 +279,20 @@ export default function BoardPage() {
                 const list = bySeat.get(p.seat) ?? [];
                 return (
                   <section key={p.seat} className="">
-                    <div className="sticky top-0 z-10 bg-white/95 backdrop-blur py-2 text-center text-base font-semibold border-b border-neutral-200">
+                    <div
+                      className={
+                        "sticky top-0 z-10 backdrop-blur py-2 text-center text-base font-semibold border-b " +
+                        (turnSeat === p.seat
+                          ? "bg-amber-100 border-amber-200 text-neutral-900"
+                          : "bg-white/95 border-neutral-200 text-neutral-900")
+                      }
+                    >
                       {p.name}
+                      {turnSeat === p.seat ? (
+                        <span className="ml-2 rounded-full bg-amber-300/70 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide">
+                          UP
+                        </span>
+                      ) : null}
                     </div>
 
                     <div className="pr-1 text-sm">
@@ -264,17 +306,24 @@ export default function BoardPage() {
                           className={
                             "flex items-center justify-between gap-2 border-b border-neutral-200/60 py-0.5 leading-tight " +
                             (lastPickNumber !== null && r.pick_number === lastPickNumber
-                              ? "rounded bg-amber-100 px-1.5 py-0.5 font-semibold"
+                              ? "relative font-semibold text-[14px] after:content-[''] after:pointer-events-none after:absolute after:inset-y-0 after:-inset-x-1 after:rounded after:border after:border-neutral-300"
                               : "")
                           }
                         >
-                          <div className="min-w-0 flex-1 truncate text-[13px]">{r.celebrity_name}</div>
                           <div
                             className={
-                              "w-9 shrink-0 text-right tabular-nums text-[12px] " +
+                              "min-w-0 flex-1 truncate " +
+                              (lastPickNumber !== null && r.pick_number === lastPickNumber ? "text-[14px]" : "text-[13px]")
+                            }
+                          >
+                            {r.celebrity_name}
+                          </div>
+                          <div
+                            className={
+                              "w-9 shrink-0 text-right tabular-nums " +
                               (lastPickNumber !== null && r.pick_number === lastPickNumber
-                                ? "text-neutral-900"
-                                : "text-neutral-600")
+                                ? "text-neutral-900 text-[13px]"
+                                : "text-neutral-600 text-[12px]")
                             }
                           >
                             {r.celebrity_age}
