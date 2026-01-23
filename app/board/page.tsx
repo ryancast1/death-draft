@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import html2canvas from "html2canvas";
 
 type Player = {
   seat: number;
@@ -34,11 +35,13 @@ export default function BoardPage() {
   const [rtStatus, setRtStatus] = useState<string>("connecting");
   const [rtEvents, setRtEvents] = useState<number>(0);
   const [turnSeat, setTurnSeat] = useState<number | null>(null);
+  const [totalCelebrities, setTotalCelebrities] = useState<number>(0);
+  const boardImageRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
     setErr(null);
 
-    const [boardRes, stateRes] = await Promise.all([
+    const [boardRes, stateRes, countRes] = await Promise.all([
       supabase
         .from("death_draft_board")
         .select(
@@ -49,6 +52,9 @@ export default function BoardPage() {
         .select("turn_seat")
         .eq("id", 1)
         .single(),
+      supabase
+        .from("death_draft_celebrities")
+        .select("*", { count: "exact", head: true }),
     ]);
 
     if (boardRes.error) {
@@ -60,6 +66,10 @@ export default function BoardPage() {
 
     if (!stateRes.error && stateRes.data) {
       setTurnSeat((stateRes.data as any).turn_seat ?? null);
+    }
+
+    if (!countRes.error && countRes.count !== null) {
+      setTotalCelebrities(countRes.count);
     }
   };
 
@@ -180,6 +190,16 @@ export default function BoardPage() {
     return "Connecting";
   }, [rtStatus]);
 
+  const roundNumber = useMemo(() => {
+    const numPicks = rows.length;
+    return Math.max(1, Math.ceil(numPicks / 6));
+  }, [rows.length]);
+
+  const percentComplete = useMemo(() => {
+    if (totalCelebrities === 0) return 0;
+    return Math.round((rows.length / totalCelebrities) * 100);
+  }, [rows.length, totalCelebrities]);
+
   const exportBoardCsv = () => {
     // Build per-seat lists in the same order as the UI
     const lists: Record<number, BoardRow[]> = {};
@@ -234,12 +254,81 @@ export default function BoardPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportBoardImage = async () => {
+    if (!boardImageRef.current) return;
+
+    try {
+      // Capture at actual size first
+      const canvas = await html2canvas(boardImageRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        logging: false,
+        ignoreElements: (element) => {
+          return false;
+        },
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.querySelector('[data-export-board]');
+          if (clonedElement) {
+            (clonedElement as HTMLElement).style.color = '#171717';
+          }
+        },
+      });
+
+      // Create a new canvas with fixed 1920x1080 dimensions
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = 1920 * 2; // 2x for retina
+      finalCanvas.height = 1080 * 2; // 2x for retina
+      const ctx = finalCanvas.getContext('2d');
+
+      if (ctx) {
+        // Fill with white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+        // Calculate scaling to fit the content within 1920x1080
+        const scaleX = finalCanvas.width / canvas.width;
+        const scaleY = finalCanvas.height / canvas.height;
+        const scale = Math.min(scaleX, scaleY);
+
+        // Calculate centered position
+        const scaledWidth = canvas.width * scale;
+        const scaledHeight = canvas.height * scale;
+        const x = (finalCanvas.width - scaledWidth) / 2;
+        const y = (finalCanvas.height - scaledHeight) / 2;
+
+        // Draw the scaled image centered
+        ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+      }
+
+      finalCanvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        a.href = url;
+        a.download = `death-draft-board-${stamp}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+    } catch (error) {
+      console.error("Failed to export image:", error);
+    }
+  };
+
   return (
     <main className="min-h-dvh bg-white px-8 py-4 text-neutral-900">
       <div className="mx-auto w-full max-w-[1400px]">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">10th Annual Celebrity Death Draft</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">10th Annual Celebrity Death Draft - 2026</h1>
+            {!loading && !err && (
+              <div className="mt-1 flex items-center gap-4 text-sm text-neutral-600">
+                <div>Round {roundNumber}</div>
+                <div>{percentComplete}% Complete</div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -248,7 +337,15 @@ export default function BoardPage() {
               onClick={exportBoardCsv}
               className="inline-flex h-9 items-center rounded-2xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-900 shadow-sm transition active:scale-[0.99]"
             >
-              Export Board
+              Export CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={exportBoardImage}
+              className="inline-flex h-9 items-center rounded-2xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-900 shadow-sm transition active:scale-[0.99]"
+            >
+              Export Image
             </button>
 
             <div className="text-sm text-neutral-500">
@@ -335,6 +432,100 @@ export default function BoardPage() {
                 );
               })}
             </div>
+          </div>
+        </div>
+
+        {/* Hidden board for image export */}
+        <div
+          ref={boardImageRef}
+          data-export-board
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: '0',
+            backgroundColor: '#ffffff',
+            padding: '40px 50px',
+            width: '1820px',
+            height: '1000px',
+            color: '#171717',
+            boxSizing: 'border-box',
+          }}
+        >
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: '600',
+            letterSpacing: '-0.025em',
+            textAlign: 'center',
+            marginBottom: '30px',
+            color: '#171717',
+          }}>
+            10th Annual Celebrity Death Draft
+          </h1>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, 1fr)',
+            gap: '20px',
+            height: 'calc(100% - 90px)',
+          }}>
+            {PLAYERS.map((p) => {
+              const list = bySeat.get(p.seat) ?? [];
+              return (
+                <section key={p.seat} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    padding: '8px 0',
+                    textAlign: 'center',
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    borderBottom: '2px solid #171717',
+                    color: '#171717',
+                    marginBottom: '10px',
+                    flexShrink: 0,
+                  }}>
+                    {p.name}
+                  </div>
+
+                  <div style={{ paddingRight: '4px', fontSize: '14px', flex: '1', overflow: 'auto' }}>
+                    {list.map((r) => (
+                      <div
+                        key={r.celebrity_id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          borderBottom: '1px solid #e5e5e5',
+                          padding: '5px 0',
+                          lineHeight: '1.3',
+                        }}
+                      >
+                        <div style={{
+                          minWidth: '0',
+                          flex: '1',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: '14px',
+                          color: '#171717',
+                        }}>
+                          {r.celebrity_name}
+                        </div>
+                        <div style={{
+                          width: '32px',
+                          flexShrink: '0',
+                          textAlign: 'right',
+                          fontVariantNumeric: 'tabular-nums',
+                          color: '#525252',
+                          fontSize: '13px',
+                        }}>
+                          {r.celebrity_age}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </div>
       </div>

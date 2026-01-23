@@ -149,9 +149,20 @@ export default function PickPage() {
         setRtStatus(String(status).toLowerCase());
       });
 
+    // Auto-refresh when returning to tab (handles stale connections)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && alive) {
+        // Refresh data when user returns to the tab
+        void loadAll().catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       alive = false;
       void supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isValidSeat, seat]);
@@ -206,6 +217,18 @@ export default function PickPage() {
     }
   };
 
+  const handleRefresh = async () => {
+    setErr(null);
+    setLoading(true);
+    try {
+      await loadAll();
+    } catch (e: any) {
+      setErr(e?.message ?? "Failed to refresh.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isValidSeat) {
     return (
       <main className="min-h-dvh bg-white p-6 text-neutral-900">
@@ -242,12 +265,24 @@ export default function PickPage() {
                   : `Current turn: ${seatToName(turnSeat)}`}
               </div>
             </div>
-            <button
-              onClick={() => router.push("/")}
-              className="mt-1 inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-neutral-100 active:scale-[0.99]"
-            >
-              Home
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="mt-1 inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-neutral-100 active:scale-[0.99] disabled:opacity-50"
+                title="Refresh"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                className="mt-1 inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-neutral-100 active:scale-[0.99]"
+              >
+                Home
+              </button>
+            </div>
           </div>
 
           {/* Turn banner */}
