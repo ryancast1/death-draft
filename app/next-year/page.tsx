@@ -102,7 +102,7 @@ export default function NextYearPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void addName(); }}
-            className="flex-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-neutral-50 placeholder-neutral-500 outline-none focus:border-white/30"
+            className="flex-1 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-base text-neutral-50 placeholder-neutral-500 outline-none focus:border-white/30"
           />
           <button
             onClick={addName}
