@@ -241,7 +241,7 @@ export default function PickPage() {
             href="/"
             className="mt-4 inline-flex items-center rounded-2xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold"
           >
-            Back to Home
+            ← Home
           </Link>
         </div>
       </main>
@@ -277,10 +277,10 @@ export default function PickPage() {
                 </svg>
               </button>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/draft")}
                 className="mt-1 inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-neutral-100 active:scale-[0.99]"
               >
-                Home
+                Draft
               </button>
             </div>
           </div>

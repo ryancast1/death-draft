@@ -1,93 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
 
-type Tile = {
-  href: string;
-  title: string;
-  subtitle?: string;
-};
+const TILES = [
+  { href: "/current-board", title: "Current Board" },
+  { href: "/log-death", title: "Log a Death" },
+  { href: "/next-year", title: "Add to Next Year's List" },
+  { href: "/odds", title: "Current Odds" },
+  { href: "/draft", title: "Draft" },
+];
 
 export default function Home() {
-  const [count, setCount] = useState<number | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const tiles = useMemo<Tile[]>(
-    () => [
-      { href: "/board", title: "Draft Board", subtitle: "Screen-share view" },
-      { href: "/pick/1", title: "Scoot" },
-      { href: "/pick/2", title: "Brian" },
-      { href: "/pick/3", title: "Stephan" },
-      { href: "/pick/4", title: "Bee" },
-      { href: "/pick/5", title: "Ryan" },
-      { href: "/pick/6", title: "Thomas" },
-    ],
-    []
-  );
-
-  useEffect(() => {
-    (async () => {
-      const { count, error } = await supabase
-        .from("death_draft_celebrities")
-        .select("*", { count: "exact", head: true });
-
-      if (error) setErr(error.message);
-      else setCount(count ?? 0);
-    })();
-  }, []);
-
   return (
     <main className="min-h-dvh p-6">
       <div className="mx-auto w-full max-w-[520px]">
-        <div className="mb-4">
+        <div className="mb-6 text-center">
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            10th Annual Celebrity Death Draft
+            Celebrity Death Draft
           </h1>
-          <div className="mt-2 text-sm text-neutral-300">
-            {err
-              ? `DB error: ${err}`
-              : count === null
-              ? "Loading celebs…"
-              : `${count} celebs loaded`}
-          </div>
+          <div className="mt-1 text-sm text-neutral-400">10th Annual — 2026</div>
         </div>
 
         <div className="space-y-3">
-          {tiles.map((t, i) => (
+          {TILES.map((t) => (
             <Link
               key={t.href}
               href={t.href}
-              className={
-                i === 0
-                  ? "flex h-20 w-full items-center justify-between rounded-3xl border border-neutral-200 bg-neutral-900 px-5 text-white shadow-sm transition active:scale-[0.99]"
-                  : "flex h-16 w-full items-center justify-between rounded-3xl border border-neutral-200 bg-white px-5 text-neutral-900 shadow-sm transition active:scale-[0.99]"
-              }
+              className="flex h-16 w-full items-center justify-center rounded-3xl border border-neutral-700 bg-neutral-900 px-5 text-white shadow-sm transition active:scale-[0.99]"
             >
-              <div className="min-w-0">
-                <div
-                  className={
-                    i === 0
-                      ? "text-xl font-semibold tracking-tight"
-                      : "text-lg font-semibold tracking-tight"
-                  }
-                >
-                  {t.title}
-                </div>
-                {t.subtitle ? (
-                  <div className={i === 0 ? "mt-0.5 text-sm text-white/70" : "mt-0.5 text-sm text-neutral-500"}>
-                    {t.subtitle}
-                  </div>
-                ) : null}
-              </div>
-              <div className={i === 0 ? "text-white/60" : "text-neutral-400"}>›</div>
+              <div className="text-lg font-semibold tracking-tight">{t.title}</div>
             </Link>
           ))}
-        </div>
-
-        <div className="mt-6 text-xs text-neutral-500">
-          Draft order: Scoot → Brian → Stephan → Bee → Ryan → Thomas
         </div>
       </div>
     </main>
