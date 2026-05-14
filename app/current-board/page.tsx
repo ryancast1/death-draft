@@ -28,6 +28,25 @@ const PLAYERS: Player[] = [
   { seat: 6, name: "Thomas" },
 ];
 
+const dayMs = 24 * 60 * 60 * 1000;
+
+function deathsPace(totalDeaths: number, now = new Date()) {
+  const year = now.getFullYear();
+  const startOfYear = new Date(year, 0, 1);
+  const startOfNextYear = new Date(year + 1, 0, 1);
+  const daysInYear = Math.round((startOfNextYear.getTime() - startOfYear.getTime()) / dayMs);
+  const dayOfYear = Math.min(
+    daysInYear,
+    Math.max(1, Math.floor((now.getTime() - startOfYear.getTime()) / dayMs) + 1)
+  );
+
+  return (totalDeaths / dayOfYear) * daysInYear;
+}
+
+function formatPace(pace: number) {
+  return Number.isInteger(pace) ? String(pace) : pace.toFixed(1);
+}
+
 export default function CurrentBoardPage() {
   const [rows, setRows] = useState<BoardRow[]>([]);
   const [deaths, setDeaths] = useState<Map<string, string | null>>(new Map());
@@ -140,6 +159,8 @@ export default function CurrentBoardPage() {
     return n;
   }, [rows, deaths]);
 
+  const projectedDeaths = useMemo(() => deathsPace(totalDeaths), [totalDeaths]);
+
   const exportImage = async () => {
     if (!exportRef.current) return;
     try {
@@ -179,6 +200,9 @@ export default function CurrentBoardPage() {
               <div className="mt-1 flex items-center gap-4 text-sm text-neutral-600">
                 <div>{rows.length} picks</div>
                 <div className="font-medium text-blue-600">{totalDeaths} deaths</div>
+                <div className="font-medium text-blue-600">
+                  On pace for {formatPace(projectedDeaths)}
+                </div>
               </div>
             )}
           </div>
@@ -299,6 +323,7 @@ export default function CurrentBoardPage() {
             marginTop: '2px',
           }}>
             {totalDeaths} {totalDeaths === 1 ? 'death' : 'deaths'}
+            {' '}· On pace for {formatPace(projectedDeaths)}
           </div>
         </div>
         <div style={{
